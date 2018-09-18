@@ -5,6 +5,8 @@ from airflow.operators.python_operator import PythonOperator
 
 from godatadriven.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
 
+from operators.http_gcs import HttpToGcsOperator
+
 dag = DAG(
     dag_id="my_first_dag",
     schedule_interval="30 7 * * *",
@@ -42,3 +44,14 @@ pgsl_to_gcs = PostgresToGoogleCloudStorageOperator(
     filename="land_registry_price_paid_uk/{{ ds }}/properties_{}.json",
     dag=dag,
 )
+
+for currency in {'EUR', 'USD'}:
+    HttpToGcsOperator(
+        task_id="get_currency_" + currency,
+        endpoint="airflow-training-transform-valutas?date={{ ds }}&from=GBP&to=" + currency,
+        method="GET",
+        http_conn_id="airflow-training-currency-http",
+        gcs_conn_id="airflow-training-data-tim",
+        gcs_path="currency/{{ ds }}-" + currency + ".json",
+        dag=dag,
+    )
