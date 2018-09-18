@@ -8,4 +8,4 @@ steps:
   entrypoint: 'bash'
 - id: 'upload'
   name: 'gcr.io/cloud-builders/gsutil'
-  args: ['-m', 'rsync', '-r', '.', 'https://console.cloud.google.com/storage/browser/europe-west1-gdd-4144b215cd-8079be39-bucket/']
+  args: ['-m', 'rsync', '-r', '.', 'gs://europe-west1-gdd-4144b215cd-8079be39-bucket/']
