@@ -26,6 +26,7 @@ class HttpToGcsOperator(BaseOperator):
     def __init__(
         self,
         endpoint,
+        bucket,
         gcs_path,
         method="GET",
         http_conn_id="http_default",
@@ -37,6 +38,7 @@ class HttpToGcsOperator(BaseOperator):
         self.http_conn_id = http_conn_id
         self.method = method
         self.endpoint = endpoint
+        self.bucket = bucket
         self.gcs_path = gcs_path
         self.gcs_conn_id = gcs_conn_id
 
@@ -53,7 +55,7 @@ class HttpToGcsOperator(BaseOperator):
             tmp_file_handle.flush()
             hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.gcs_conn_id)
             hook.upload(
-                bucket="airflow-training-data",
+                bucket=self.bucket,
                 object=self.gcs_path,
                 filename=tmp_file_handle.name,
             )
