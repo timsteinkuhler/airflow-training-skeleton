@@ -1,11 +1,15 @@
 import datetime as dt
 
 from airflow import DAG
-from airflow.operators.python_operator import PythonOperator
+from airflow.operators.dataproc_operator import DataprocClusterCreateOperator
+from airflow.operators.dataproc_operator import DataProcPySparkOperator
+from airflow.operators.dataproc_operator import DataprocClusterDeleteOperator
 
 from godatadriven.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
 
 from operators.http_gcs import HttpToGcsOperator
+
+PROJECT_ID = "gdd-4144b215cd4d2ac616172ab57d"
 
 dag = DAG(
     dag_id="my_first_dag",
@@ -20,13 +24,32 @@ dag = DAG(
 )
 
 
-def print_exec_date(**context):
-    print(context["execution_date"])
-
-
-my_task = PythonOperator(
-    task_id="task_name", python_callable=print_exec_date, provide_context=True, dag=dag
+dataproc_delete_cluster = DataprocClusterDeleteOperator(
+    task_id="delete_dataproc",
+    cluster_name="analyse-pricing-{{ ds }}",
+    dag=dag,
+    project_id=PROJECT_ID,
 )
+
+
+compute_aggregates = DataProcPySparkOperator(
+    task_id="compute_aggregates",
+    main="gs://airflow-training-data/build_statistics.py",
+    cluster_name="analyse-pricing-{{ ds }}",
+    arguments=["{{ ds }}"],
+    dag=dag,
+) >> dataproc_delete_cluster
+
+
+dataproc_create_cluster = DataprocClusterCreateOperator(
+    task_id="create_dataproc",
+    cluster_name="analyse-pricing-{{ ds }}",
+    project_id=PROJECT_ID,
+    num_workers=2,
+    zone="europe-west4-a",
+    dag=dag,
+    auto_delete_ttl=5 * 60,  # Autodelete after 5 minutes
+) >> compute_aggregates
 
 
 query = """
@@ -35,7 +58,6 @@ query = """
     WHERE transfer_date = '{{ ds }}'
 """
 
-
 pgsl_to_gcs = PostgresToGoogleCloudStorageOperator(
     task_id="pgsl_to_gcs",
     postgres_conn_id="postgres_airflow_training",
@@ -43,16 +65,19 @@ pgsl_to_gcs = PostgresToGoogleCloudStorageOperator(
     bucket="airflow-training-data-tim",
     filename="land_registry_price_paid_uk/{{ ds }}/properties_{}.json",
     dag=dag,
-)
+) >> dataproc_create_cluster
+
 
 for currency in {"EUR", "USD"}:
     HttpToGcsOperator(
         task_id="get_currency_" + currency,
-        endpoint="airflow-training-transform-valutas?date={{ ds }}&from=GBP&to={cur}".format(cur=currency),
+        endpoint="airflow-training-transform-valutas?date={{ ds }}&from=GBP&to={cur}".format(
+            cur=currency
+        ),
         bucket="airflow-training-data-tim",
         method="GET",
         http_conn_id="airflow-training-currency-http",
         gcs_conn_id="airflow-training-data-tim",
         gcs_path="currency/{{ ds }}-" + currency + ".json",
         dag=dag,
-    )
+    ) >> dataproc_create_cluster
