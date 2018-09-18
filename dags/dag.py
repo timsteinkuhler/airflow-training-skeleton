@@ -36,7 +36,7 @@ dataproc_delete_cluster = DataprocClusterDeleteOperator(
 
 dataproc_compute_aggregates = DataProcPySparkOperator(
     task_id="dataproc_compute_aggregates",
-    main="../helpers/build_statistics.py",
+    main="file://../helpers/build_statistics.py",
     cluster_name="analyse-pricing-{{ ds }}",
     arguments=["{{ ds }}"],
     dag=dag,
