@@ -27,9 +27,9 @@ my_task = PythonOperator(
 )
 
 
-query= """
-    SELECT * 
-    FROM land_registry_price_paid_uk 
+query = """
+    SELECT *
+    FROM land_registry_price_paid_uk
     WHERE transfer_date = '{{ ds }}'
 """
 
@@ -40,5 +40,5 @@ pgsl_to_gcs = PostgresToGoogleCloudStorageOperator(
     sql=query,
     bucket="airflow-training-data-tim",
     filename="land_registry_price_paid_uk/{{ ds }}/properties_{}.json",
-    dag=dag
+    dag=dag,
 )
