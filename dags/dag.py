@@ -27,31 +27,31 @@ dag = DAG(
 
 
 dataproc_delete_cluster = DataprocClusterDeleteOperator(
-    task_id="delete_dataproc",
+    task_id="dataproc_delete_cluster",
     cluster_name="analyse-pricing-{{ ds }}",
     dag=dag,
     project_id=PROJECT_ID,
 )
 
 
-compute_aggregates = DataProcPySparkOperator(
-    task_id="compute_aggregates",
+dataproc_compute_aggregates = DataProcPySparkOperator(
+    task_id="dataproc_compute_aggregates",
     main="gs://airflow-training-data/build_statistics.py",
     cluster_name="analyse-pricing-{{ ds }}",
     arguments=["{{ ds }}"],
     dag=dag,
-) >> dataproc_delete_cluster
+)
 
 
 dataproc_create_cluster = DataprocClusterCreateOperator(
-    task_id="create_dataproc",
+    task_id="dataproc_create_cluster",
     cluster_name="analyse-pricing-{{ ds }}",
     project_id=PROJECT_ID,
     num_workers=2,
     zone="europe-west4-a",
     dag=dag,
     auto_delete_ttl=5 * 60,  # Autodelete after 5 minutes
-) >> compute_aggregates
+)
 
 
 query = """
@@ -83,3 +83,5 @@ for currency in {"EUR", "USD"}:
         gcs_path="currency/{{ ds }}-" + currency + ".json",
         dag=dag,
     ) >> dataproc_create_cluster
+
+dataproc_create_cluster >> dataproc_compute_aggregates >> dataproc_delete_cluster
