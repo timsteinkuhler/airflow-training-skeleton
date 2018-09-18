@@ -1,9 +1,11 @@
 import datetime as dt
 
 from airflow import DAG
-from airflow.operators.dataproc_operator import DataprocClusterCreateOperator
-from airflow.operators.dataproc_operator import DataProcPySparkOperator
-from airflow.operators.dataproc_operator import DataprocClusterDeleteOperator
+from airflow.contrib.operators.dataproc_operator import (
+    DataprocClusterCreateOperator,
+    DataProcPySparkOperator,
+    DataprocClusterDeleteOperator
+)
 
 from godatadriven.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
 
