@@ -9,6 +9,7 @@ from airflow.contrib.operators.dataproc_operator import (
 from airflow.utils.trigger_rule import TriggerRule
 
 from godatadriven.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
+from godatadriven.operators.gcs_to_bq import GoogleCloudStorageToBigQueryOperator
 
 from operators.http_gcs import HttpToGcsOperator
 
@@ -28,15 +29,15 @@ dag = DAG(
 )
 
 
-# write_to_bq = GoogleCloudStorageToBigQueryOperator(
-#     task_id="write_to_bq",
-#     bucket=BUCKET,
-#     source_objects=["average_prices/transfer_date={{ ds }}/*"],
-#     destination_project_dataset_table="gdd-airflow-training:prices.land_registry_price${{ ds_nodash }}",
-#     source_format="PARQUET",
-#     write_disposition="WRITE_TRUNCATE",
-#     dag=dag,
-# )
+write_to_bq = GoogleCloudStorageToBigQueryOperator(
+    task_id="write_to_bq",
+    bucket=BUCKET,
+    source_objects=["average_prices/transfer_date={{ ds }}/*"],
+    destination_project_dataset_table=PROJECT_ID + ":prices.land_registry_price${{ ds_nodash }}",
+    source_format="PARQUET",
+    write_disposition="WRITE_TRUNCATE",
+    dag=dag,
+)
 
 
 dataproc_delete_cluster = DataprocClusterDeleteOperator(
