@@ -54,7 +54,7 @@ dataproc_delete_cluster = DataprocClusterDeleteOperator(
 write_prices_to_bq = DataFlowPythonOperator(
     task_id="write_prices_to_bq",
     dataflow_default_options={"project": PROJECT_ID, "region": "europe-west1"},
-    py_file="gs://" + BUCKET + "scripts/dataflow_job.py",
+    py_file="gs://" + BUCKET + "/scripts/dataflow_job.py",
     dag=dag,
 )
 
