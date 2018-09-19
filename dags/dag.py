@@ -29,8 +29,8 @@ dag = DAG(
 )
 
 
-write_to_bq = GoogleCloudStorageToBigQueryOperator(
-    task_id="write_to_bq",
+write_aggregates_to_bq = GoogleCloudStorageToBigQueryOperator(
+    task_id="write_aggregates_to_bq",
     bucket=BUCKET,
     source_objects=["average_prices/transfer_date={{ ds }}/*"],
     destination_project_dataset_table=PROJECT_ID + ":prices.land_registry_price${{ ds_nodash }}",
@@ -98,3 +98,4 @@ for currency in {"EUR", "USD"}:
     ) >> dataproc_create_cluster
 
 dataproc_create_cluster >> dataproc_compute_aggregates >> dataproc_delete_cluster
+dataproc_compute_aggregates >> write_aggregates_to_bq

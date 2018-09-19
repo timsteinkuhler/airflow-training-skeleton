@@ -8,6 +8,8 @@ print(dt)
 
 spark = SparkSession.builder.getOrCreate()
 
+spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
+
 spark.read.json(
     "gs://airflow-training-data-tim/land_registry_price_paid_uk/*/*.json"
 ).withColumn(
