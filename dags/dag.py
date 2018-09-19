@@ -52,7 +52,6 @@ dataproc_create_cluster = DataprocClusterCreateOperator(
     num_workers=2,
     zone="europe-west4-a",
     dag=dag,
-    auto_delete_ttl=5 * 60,  # Autodelete after 5 minutes
 )
 
 
