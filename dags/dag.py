@@ -4,7 +4,8 @@ from airflow import DAG
 from airflow.contrib.operators.dataproc_operator import (
     DataprocClusterCreateOperator,
     DataProcPySparkOperator,
-    DataprocClusterDeleteOperator
+    DataprocClusterDeleteOperator,
+    DataFlowPythonOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -33,7 +34,8 @@ write_aggregates_to_bq = GoogleCloudStorageToBigQueryOperator(
     task_id="write_aggregates_to_bq",
     bucket=BUCKET,
     source_objects=["average_prices/transfer_date={{ ds }}/*"],
-    destination_project_dataset_table=PROJECT_ID + ":prices.land_registry_price${{ ds_nodash }}",
+    destination_project_dataset_table=PROJECT_ID
+    + ":prices.land_registry_price${{ ds_nodash }}",
     source_format="PARQUET",
     write_disposition="WRITE_TRUNCATE",
     dag=dag,
@@ -45,7 +47,15 @@ dataproc_delete_cluster = DataprocClusterDeleteOperator(
     cluster_name="analyse-pricing-{{ ds }}",
     dag=dag,
     project_id=PROJECT_ID,
-    trigger_rule=TriggerRule.ALL_DONE
+    trigger_rule=TriggerRule.ALL_DONE,
+)
+
+
+write_prices_to_bq = DataFlowPythonOperator(
+    task_id="write_prices_to_bq",
+    dataflow_default_options={"project": PROJECT_ID, "region": "europe-west1"},
+    py_file="gs://" + BUCKET + "scripts/dataflow_job.py",
+    dag=dag,
 )
 
 
@@ -65,7 +75,7 @@ dataproc_create_cluster = DataprocClusterCreateOperator(
     num_workers=2,
     zone="europe-west4-a",
     dag=dag,
-    pool="dataproc"
+    pool="dataproc",
 )
 
 
@@ -75,20 +85,24 @@ query = """
     WHERE transfer_date = '{{ ds }}'
 """
 
-pgsl_to_gcs = PostgresToGoogleCloudStorageOperator(
-    task_id="pgsl_to_gcs",
-    postgres_conn_id="postgres_airflow_training",
-    sql=query,
-    bucket=BUCKET,
-    filename="land_registry_price_paid_uk/{{ ds }}/properties_{}.json",
-    dag=dag,
-) >> dataproc_create_cluster
+pgsl_to_gcs = (
+    PostgresToGoogleCloudStorageOperator(
+        task_id="pgsl_to_gcs",
+        postgres_conn_id="postgres_airflow_training",
+        sql=query,
+        bucket=BUCKET,
+        filename="land_registry_price_paid_uk/{{ ds }}/properties_{}.json",
+        dag=dag,
+    )
+    >> dataproc_create_cluster
+)
 
 
 for currency in {"EUR", "USD"}:
     HttpToGcsOperator(
         task_id="get_currency_" + currency,
-        endpoint="airflow-training-transform-valutas?date={{ ds }}&from=GBP&to=" + currency,
+        endpoint="airflow-training-transform-valutas?date={{ ds }}&from=GBP&to="
+        + currency,
         bucket=BUCKET,
         method="GET",
         http_conn_id="airflow-training-currency-http",
@@ -99,3 +113,4 @@ for currency in {"EUR", "USD"}:
 
 dataproc_create_cluster >> dataproc_compute_aggregates >> dataproc_delete_cluster
 dataproc_compute_aggregates >> write_aggregates_to_bq
+pgsl_to_gcs >> write_prices_to_bq
