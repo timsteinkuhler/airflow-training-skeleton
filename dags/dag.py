@@ -6,6 +6,7 @@ from airflow.contrib.operators.dataproc_operator import (
     DataProcPySparkOperator,
     DataprocClusterDeleteOperator
 )
+from airflow.utils.trigger_rule import TriggerRule
 
 from godatadriven.operators.postgres_to_gcs import PostgresToGoogleCloudStorageOperator
 
@@ -31,12 +32,13 @@ dataproc_delete_cluster = DataprocClusterDeleteOperator(
     cluster_name="analyse-pricing-{{ ds }}",
     dag=dag,
     project_id=PROJECT_ID,
+    trigger_rule=TriggerRule.ALL_DONE
 )
 
 
 dataproc_compute_aggregates = DataProcPySparkOperator(
     task_id="dataproc_compute_aggregates",
-    main="file://helpers/build_statistics.py",
+    main="gs://airflow-training-data-tim/scripts/build_statistics.py",
     cluster_name="analyse-pricing-{{ ds }}",
     arguments=["{{ ds }}"],
     dag=dag,
